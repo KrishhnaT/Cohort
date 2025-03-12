@@ -1,3 +1,5 @@
+//Map
+
 const array1 = [1, 4, 9, 16];
 
 // Pass a function to map
