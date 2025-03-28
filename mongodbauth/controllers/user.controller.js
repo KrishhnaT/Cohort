@@ -87,7 +87,7 @@ const verifyUser = async (req,res) => {
 // Save
 //Return Response 
 
-const {token} = req.params.token;
+const {token} = req.params;
     if(!token){
   res.status(400).json({
     message:"No token Provided"
