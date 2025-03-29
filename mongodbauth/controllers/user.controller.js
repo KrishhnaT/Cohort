@@ -1,201 +1,253 @@
-import User from "../model/User.model.js"
-import crypto from "crypto"
+import User from "../model/User.model.js";
+import crypto from "crypto";
 import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+const registerUser = async (req, res) => {
+  // get data
+  //validate
+  // check if user already exists
+  // create a user in database
+  //create a verification token
+  // save token in database
+  // send token as email to user
+  // send success status to user
 
-const registerUser = async (req,res) => {
-
-     //get data from req.body
-     //validate
-     //Check if user already exist 
-     //Create a user in db
-     //Create a token store one in db send one in mail to user
-     //Send success message
-     const {name, email, password} = req.body;
-     if(!name || !email || !password){
-          res.status(400).json({
-               message:"All fields Required"
-          });
-          console.log("Error all fields not given ")
-     }
-     try {
-        const existingUser = await User.findOne({email})
-        if(existingUser){
-          res.status(400).json({
-               message:"User Already Exist"
-          });
-        }
-        const user = await User.create({
-          name,
-          email,
-          password
-        });
-        console.log(user);
-        if(!user){
-          res.status(400).json({
-               message:"User Already Exist"
-          });
-        }
-
-        const token = crypto.randomBytes(32).toString("hex");
-        console.log(token);
-        user.verificationToken = token
-        await user.save();
-
-        //Send Mail
-        const transporter = nodemailer.createTransport({
-          host: process.env.MAILTRAP_HOST,
-          port: process.env.MAILTRAP_PORT,
-          secure: false, // true for port 465, false for other ports
-          auth: {
-            user: process.env.MAILTRAP_USERNAME,
-            pass: process.env.MAILTRAP_PASSWORD,
-          },
-        });
-
-        const mailOption = {
-          from: process.env.MAILTRAP_SENDEREMAIL, // sender address
-          to: user.email, // list of receivers
-          subject: "Verify your Email. ✔", // Subject line
-          text: `Please click on following link:
-          ${process.env.BASE_URL}/api/v1/user/verify/${token}`, // plain text body
-          
-        };
-        
-        await transporter.sendMail(mailOption);
-
-        res.status(200).json({
-          message:"Registration Successful "
-        }); 
-      } catch (error) {
-         res.status(400).json({
-          message:"User not Registered"
-         }) 
-         console.log("Error message:-",error);
-     }
-
-}
-
-const verifyUser = async (req,res) => {
-//get token from url
-//Validate Token 
-//Find user based on verificationTOken 
-//if not
-//Set is Verified == True
-//remove verification token 
-// Save
-//Return Response 
-
-const {token} = req.params;
-    if(!token){
-  res.status(400).json({
-    message:"No token Provided"
-  });
-}
-
-    const user = await User.findOne({verificationToken: token});
-
-    if(!user){
-  res.status(400).json({
-    message:"Invaild token",
-  });
-}
-
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    await user.save();
-    res.status(200).json({
-      message:"Verified "
-    })
-    
-
-}
-
-const loginUser = async (req,res) => {
-  const {email,password} = req.body;
-  if(!email || !password){
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
     return res.status(400).json({
-      message: "All Fields Required"
+      message: "All fields are required",
     });
   }
 
   try {
-    const user = await User.findOne({email});
-    if(!user){
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({
-        message: "User not Found"
+        message: "User already exists",
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+    });
+    console.log(user);
+
+    if (!user) {
+      return res.status(400).json({
+        message: "User not registered",
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    console.log(token);
+    user.verificationToken = token;
+
+    await user.save();
+
+    //send email
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAILTRAP_HOST,
+      port: process.env.MAILTRAP_PORT,
+      secure: false, // true for port 465, false for other ports
+      auth: {
+        user: process.env.MAILTRAP_USERNAME,
+        pass: process.env.MAILTRAP_PASSWORD,
+      },
+    });
+
+    const mailOption = {
+      from: process.env.MAILTRAP_SENDEREMAIL,
+      to: user.email,
+      subject: "Verify your email", // Subject line
+      text: `Please click on the following link:
+      ${process.env.BASE_URL}/api/v1/users/verify/${token}
+      `,
+    };
+
+    await transporter.sendMail(mailOption);
+
+    res.status(201).json({
+      message: "User registered successfully",
+      success: true,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "User not registered ",
+      error,
+      success: false,
+    });
+  }
+};
+
+const verifyUser = async (req, res) => {
+  //get token from url
+  //validate
+  // find user based on token
+  //if not
+  // set isVerified field to true
+  // remove verification token
+  // save
+  //return response
+
+  const { token } = req.params;
+  console.log(token);
+  if (!token) {
+    return res.status(400).json({
+      message: "Invalid token",
+    });
+  }
+  try {
+    console.log("verification started");
+
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid token",
+      });
+    }
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({
+      message: "User verified successfully",
+      success: true,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "User not verified",
+      error,
+      success: false,
+    });
+  }
+};
+
+const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "All fields are required",
+    });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid email or password",
       });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+
     console.log(isMatch);
-    if(!isMatch){
+
+    if (!isMatch) {
       return res.status(400).json({
-        message:"Incorrect Password",
-      })
+        message: "Invalid email or password",
+      });
     }
 
-    const token = jwt.sign({id: user._id},
-      process.env.JWT_SECRET,{
-      expiresIn: '24h'
-    });
+    //
 
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "24h",
+      }
+    );
     const cookieOptions = {
       httpOnly: true,
       secure: true,
-      maxAge: 24*60*60*1000
-    }
-
-    res.cookie("test" , token , {});
+      maxAge: 24 * 60 * 60 * 1000,
+    };
+    res.cookie("token", token, cookieOptions);
 
     res.status(200).json({
-      message: "Login Successful",
+      success: true,
+      message: "Login successful",
       token,
       user: {
         id: user._id,
         name: user.name,
-      }
-    })
+        role: user.role,
+      },
+    });
+  } catch (error) {}
+};
 
-    } catch (error) {
-    console.table(error);
-    res.status(400).json({
-      message: "Login Unsuccessful"
-    })
-  }
-}
-
-const getMe = async (req,res) => {
+const getMe = async (req, res) => {
   try {
-    
-  } catch (error) {
-    
-  }
-}
+    const user = await User.findById(req.user.id).select("-password");
+    console.log(user);
 
-const logoutUser = async (req,res) => {
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.log("Error in get me", error);
+  }
+};
+const logoutUser = async (req, res) => {
   try {
-    
-  } catch (error) {
-    
-  }
-}
-
-const forgotPassword = async (req,res) => {
+    res.cookie("token", "", {});
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {}
+};
+const forgotPassword = async (req, res) => {
   try {
-    
-  } catch (error) {
-    
-  }
-}
-
-const resetPassword = async (req,res) => {
+    //get email
+    // find user based on email
+    // reset token + reset expiry => Date.now() + 10 * 60 * 1000 => user.save()
+    // send mail => design url
+  } catch (error) {}
+};
+const resetPassword = async (req, res) => {
   try {
-    
-  } catch (error) {
-    
-  }
-}
+    //collect token from params
+    // password from req.body
+    const { token } = req.params;
+    const { password, confPassword } = req.body;
 
-export  { registerUser, verifyUser, loginUser, getMe, logoutUser, forgotPassword, resetPassword } ;
+    if (password === confPassword) {
+    }
+
+    try {
+      const user = await User.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() },
+      });
+      // set password in user
+      // resetToken, resetExpiry => reset
+      // save
+    } catch (error) {}
+  } catch (error) {}
+};
+
+export {
+  registerUser,
+  verifyUser,
+  login,
+  getMe,
+  logoutUser,
+  resetPassword,
+  forgotPassword,
+};
