@@ -14,4 +14,4 @@ export const TaskStatusEnum = {
 }
 
 export const AvailableTaskStatus = Object.values
-(TaskStatusEnum)
+(TaskStatusEnum);
